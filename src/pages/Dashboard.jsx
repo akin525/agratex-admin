@@ -78,22 +78,22 @@ const Dashboard = () => {
   ];
 
   const financialStats = [
-    {
-      title: 'Success Bids',
-      value: data?.success_bids || 0,
-      amount: `$${(data?.sum_bids || 0).toLocaleString()}`,
-      gradient: 'from-green-500 to-emerald-500',
-      icon: TrendingUp,
-      percentage: '68%',
-    },
-    {
-      title: 'Success Asks',
-      value: data?.success_asks || 0,
-      amount: `$${(data?.sum_asks || 0).toLocaleString()}`,
-      gradient: 'from-blue-500 to-cyan-500',
-      icon: DollarSign,
-      percentage: '72%',
-    },
+    // {
+    //   title: 'Success Bids',
+    //   value: data?.success_bids || 0,
+    //   amount: `$${(data?.sum_bids || 0).toLocaleString()}`,
+    //   gradient: 'from-green-500 to-emerald-500',
+    //   icon: TrendingUp,
+    //   percentage: '68%',
+    // },
+    // {
+    //   title: 'Success Asks',
+    //   value: data?.success_asks || 0,
+    //   amount: `$${(data?.sum_asks || 0).toLocaleString()}`,
+    //   gradient: 'from-blue-500 to-cyan-500',
+    //   icon: DollarSign,
+    //   percentage: '72%',
+    // },
   ];
 
   const quickActions = [
@@ -142,7 +142,7 @@ const Dashboard = () => {
         </div>
 
         {/* Stats Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-6">
           {stats.map((stat, index) => (
               <div
                   key={index}
