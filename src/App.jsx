@@ -12,6 +12,8 @@ import Staking from './pages/Staking';
 import BotCast from './pages/BotCast';
 import Referrals from './pages/Referrals';
 import Settings from './pages/Settings';
+import LegacyLevels from './pages/LegacyLevels';
+import LegacyLevelRequirements from './pages/LegacyLevelRequirements';
 
 function App() {
   return (
@@ -35,6 +37,8 @@ function App() {
             <Route path="plans" element={<Plans />} />
             <Route path="investments" element={<Investments />} />
             <Route path="staking" element={<Staking />} />
+            <Route path="legacy-levels" element={<LegacyLevels />} />
+            <Route path="legacy-requirements" element={<LegacyLevelRequirements />} />
             <Route path="bot-cast" element={<BotCast />} />
             <Route path="referrals" element={<Referrals />} />
             <Route path="settings" element={<Settings />} />

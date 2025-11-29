@@ -13,7 +13,10 @@ import {
   Layers,
   Activity,
   Shield,
-  Zap, LogOut,
+  Zap,
+  LogOut,
+  Award,
+  Target,
 } from 'lucide-react';
 import { useState } from 'react';
 import {useAuth} from "../../context/AuthContext.jsx";
@@ -57,6 +60,20 @@ const Sidebar = () => {
       label: 'Staking',
       color: 'from-yellow-500 to-orange-500',
       badge: 'Hot'
+    },
+    {
+      path: '/legacy-levels',
+      icon: Award,
+      label: 'Legacy Levels',
+      color: 'from-pink-500 to-rose-500',
+      badge: null
+    },
+    {
+      path: '/legacy-requirements',
+      icon: Target,
+      label: 'Requirements',
+      color: 'from-violet-500 to-purple-500',
+      badge: null
     },
     {
       path: '/referrals',

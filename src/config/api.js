@@ -42,6 +42,24 @@ export const API_ENDPOINTS = {
   STAKING_RELEASE_WALLET: '/sc/staking/wallet-pool/release',
   STAKING_REPORT: '/sc/staking/report',
   STAKING_TOP_STAKERS: '/sc/staking/top-stakers',
+
+  // Legacy Levels
+  LEGACY_LEVELS: '/sc/legacy-levels',
+  LEGACY_LEVEL_DETAILS: (id) => `/sc/legacy-levels/${id}`,
+  CREATE_LEGACY_LEVEL: '/sc/legacy-levels',
+  UPDATE_LEGACY_LEVEL: (id) => `/sc/legacy-levels/${id}`,
+  DELETE_LEGACY_LEVEL: (id) => `/sc/legacy-levels/${id}`,
+
+  // Legacy Level Requirements
+  LEGACY_REQUIREMENTS: '/sc/legacy-level-requirements',
+  LEGACY_REQUIREMENT_DETAILS: (id) => `/sc/legacy-level-requirements/${id}`,
+  CREATE_LEGACY_REQUIREMENT: '/sc/legacy-level-requirements',
+  UPDATE_LEGACY_REQUIREMENT: (id) => `/sc/legacy-level-requirements/${id}`,
+  DELETE_LEGACY_REQUIREMENT: (id) => `/sc/legacy-level-requirements/${id}`,
+
+  // Plans - Additional endpoints
+  CREATE_PLAN: '/sc/plans',
+  TOGGLE_PLAN_STATUS: (id) => `/sc/plan-status-${id}`,
 };
 
 export default API_BASE_URL;
