@@ -1,122 +1,154 @@
-import { useAuth } from '../../context/AuthContext';
-import { LogOut, User, Bell } from 'lucide-react';
 import { useState } from 'react';
+import { useLocation } from 'react-router-dom';
+import { useAuth } from '../../context/AuthContext';
+import { Bell, LogOut, User, ChevronRight, Shield, Search, Menu } from 'lucide-react';
 
-const Header = () => {
+const PAGE_TITLES = {
+  '/dashboard': { title: 'Dashboard', description: 'Overview & Analytics' },
+  '/users': { title: 'Users', description: 'User Management' },
+  '/deposits': { title: 'Deposits', description: 'Deposit Management' },
+  '/transactions': { title: 'Transactions', description: 'Transaction Ledger' },
+  '/exchange-transactions': { title: 'Exchanges', description: 'Exchange History' },
+  '/currency-pairs': { title: 'Currency Pairs', description: 'Exchange Rates' },
+  '/wallet-pools': { title: 'Wallet Pools', description: 'Crypto Wallets' },
+  '/plans': { title: 'Plans', description: 'Investment Plans' },
+  '/investments': { title: 'Investments', description: 'User Investments' },
+  '/staking': { title: 'Staking', description: 'Staking Management' },
+  '/user-rankings': { title: 'Rankings', description: 'User Rank Tiers' },
+  '/legacy-levels': { title: 'Legacy Levels', description: 'Level Tiers' },
+  '/legacy-requirements': { title: 'Requirements', description: 'Level Requirements' },
+  '/referrals': { title: 'Referrals', description: 'Commission Config' },
+  '/bot-cast': { title: 'Bot Cast', description: 'Broadcast Messages' },
+  '/settings': { title: 'Settings', description: 'Platform Configuration' },
+};
+
+// Notice the new prop: setMobileOpen
+const Header = ({ setMobileOpen }) => {
   const { user, logout } = useAuth();
-  const [showDropdown, setShowDropdown] = useState(false);
+  const location = useLocation();
+  const [showProfile, setShowProfile] = useState(false);
 
-  const handleLogout = () => {
-    if (window.confirm('Are you sure you want to logout?')) {
-      logout();
-    }
-  };
+  // Safely extract the base path
+  const pathBase = '/' + (location.pathname.split('/')[1] || '');
+  const pageInfo = PAGE_TITLES[pathBase] || { title: 'Admin Panel', description: '' };
+
+  // Dynamic override for specific routes
+  const isUserDetails = location.pathname.match(/^\/users\/\d+/);
+  if (isUserDetails) {
+    pageInfo.title = 'User Details';
+    pageInfo.description = 'User Profile & Activity';
+  }
 
   return (
-      <header className="bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 border-b border-slate-700/50 px-6 py-4 shadow-xl relative overflow-hidden">
-        {/* Animated Background */}
-        <div className="absolute inset-0 bg-gradient-to-r from-purple-500/5 via-transparent to-blue-500/5 pointer-events-none"></div>
-        <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-purple-500/50 to-transparent"></div>
+      <header className="sticky top-0 z-30 h-16 bg-slate-950/80 backdrop-blur-md border-b border-slate-800/60 flex items-center justify-between px-4 lg:px-8 transition-all">
 
-        <div className="flex items-center justify-between relative z-10">
-          {/* Page Title */}
-          <div>
-            <h2 className="text-2xl font-bold bg-gradient-to-r from-purple-400 via-blue-400 to-cyan-400 bg-clip-text text-transparent">
-              Admin Dashboard
+        {/* Left: Mobile Toggle & Page Identity */}
+        <div className="flex items-center gap-4">
+          {/* Mobile Hamburger Button */}
+          <button
+              onClick={() => setMobileOpen(true)}
+              className="lg:hidden p-2 -ml-2 text-slate-400 hover:text-white hover:bg-slate-800/50 rounded-lg transition-colors"
+              aria-label="Open sidebar"
+          >
+            <Menu className="w-5 h-5" />
+          </button>
+
+          <div className="hidden sm:block">
+            <div className="flex items-center gap-1.5 text-xs text-slate-500 font-medium mb-0.5">
+              <span className="hover:text-slate-300 cursor-pointer transition-colors">Admin</span>
+              <ChevronRight className="w-3.5 h-3.5" />
+              <span className="text-indigo-400">{pageInfo.title}</span>
+            </div>
+            <h2 className="text-xl font-semibold text-white leading-none tracking-tight">
+              {pageInfo.title}
             </h2>
-            <p className="text-sm text-slate-400 flex items-center gap-2 mt-1">
-              Welcome back,
-              <span className="text-purple-400 font-semibold">{user?.name || 'Admin'}</span>
-              <span className="flex items-center gap-1.5">
-              <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse shadow-lg shadow-green-400/50"></div>
-              <span className="text-xs text-green-400">Online</span>
-            </span>
-            </p>
           </div>
 
-          {/* Right Section */}
-          <div className="flex items-center gap-4">
-            {/* Notifications */}
-            <button className="relative p-2.5 text-slate-400 hover:text-white hover:bg-slate-700/50 rounded-xl transition-all border border-slate-700/50 hover:border-slate-600 hover:shadow-lg hover:shadow-purple-500/10 group">
-              <Bell className="w-5 h-5" />
-              <span className="absolute top-1.5 right-1.5 w-2.5 h-2.5 bg-gradient-to-r from-red-500 to-pink-500 rounded-full animate-pulse shadow-lg shadow-red-500/50"></span>
-              <span className="absolute -top-1 -right-1 w-5 h-5 bg-gradient-to-r from-red-500 to-pink-500 rounded-full text-white text-xs flex items-center justify-center font-bold opacity-0 group-hover:opacity-100 transition-opacity">
-              3
-            </span>
+          {/* Mobile Title (Simplified) */}
+          <h2 className="sm:hidden text-lg font-semibold text-white">
+            {pageInfo.title}
+          </h2>
+        </div>
+
+        {/* Right: Quick Actions & Profile */}
+        <div className="flex items-center gap-2 sm:gap-4">
+
+          {/* Utility Icons (Search & Notifications) */}
+          <div className="flex items-center gap-1 sm:gap-2 mr-2 border-r border-slate-800/60 pr-4">
+            <button className="p-2 text-slate-400 hover:text-white hover:bg-slate-800/50 rounded-full transition-colors">
+              <Search className="w-4 h-4" />
+            </button>
+            <button className="p-2 text-slate-400 hover:text-white hover:bg-slate-800/50 rounded-full transition-colors relative">
+              <Bell className="w-4 h-4" />
+              {/* Notification Dot */}
+              <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-rose-500 border-2 border-slate-950 rounded-full"></span>
+            </button>
+          </div>
+
+          {/* Profile Dropdown */}
+          <div className="relative">
+            <button
+                onClick={() => setShowProfile(!showProfile)}
+                className="flex items-center gap-3 pl-2 pr-1 py-1 rounded-full hover:bg-slate-800/50 border border-transparent hover:border-slate-700/50 transition-all focus:outline-none focus:ring-2 focus:ring-indigo-500/50"
+            >
+              <div className="hidden md:flex flex-col items-end text-right">
+              <span className="text-sm font-semibold text-white leading-none mb-1">
+                {user?.name || user?.email || 'Admin'}
+              </span>
+                <span className="text-xs text-slate-500 leading-none">Administrator</span>
+              </div>
+
+              {/* Avatar */}
+              <div className="w-9 h-9 bg-indigo-500/10 border border-indigo-500/20 rounded-full flex items-center justify-center text-indigo-400 shrink-0">
+                <User className="w-4 h-4" />
+              </div>
             </button>
 
-            {/* User Menu */}
-            <div className="relative">
-              <button
-                  onClick={() => setShowDropdown(!showDropdown)}
-                  className="flex items-center gap-3 p-2 pr-4 hover:bg-slate-700/50 rounded-xl transition-all border border-slate-700/50 hover:border-slate-600 hover:shadow-lg hover:shadow-purple-500/10 group"
-              >
-                <div className="w-10 h-10 bg-gradient-to-br from-purple-600 to-blue-600 rounded-xl flex items-center justify-center shadow-lg shadow-purple-500/30 relative overflow-hidden group-hover:shadow-purple-500/50 transition-shadow">
-                  <User className="w-5 h-5 text-white relative z-10" strokeWidth={2.5} />
-                  <div className="absolute inset-0 bg-white/20 group-hover:bg-white/30 transition-colors"></div>
-                </div>
-                <div className="text-left hidden md:block">
-                  <p className="text-sm font-semibold text-white">{user?.name || 'Admin'}</p>
-                  <p className="text-xs text-slate-400">{user?.email || 'admin@agartex.com'}</p>
-                </div>
-                <svg
-                    className={`w-4 h-4 text-slate-400 transition-transform hidden md:block ${showDropdown ? 'rotate-180' : ''}`}
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                >
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                </svg>
-              </button>
+            {/* Dropdown Menu */}
+            {showProfile && (
+                <>
+                  {/* Invisible overlay to catch outside clicks */}
+                  <div
+                      className="fixed inset-0 z-40"
+                      onClick={() => setShowProfile(false)}
+                  ></div>
 
-              {/* Dropdown */}
-              {showDropdown && (
-                  <div className="absolute right-0 mt-3 w-56 bg-slate-800 backdrop-blur-xl border border-slate-700/50 rounded-2xl shadow-2xl z-50 overflow-hidden animate-slideDown">
-                    {/* Profile Info */}
-                    <div className="px-4 py-3 border-b border-slate-700/50 bg-gradient-to-r from-purple-900/20 to-blue-900/20">
+                  <div className="absolute right-0 top-[calc(100%+0.5rem)] w-64 bg-slate-900 border border-slate-800 rounded-xl shadow-2xl shadow-black/50 z-50 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
+                    {/* User Info Header */}
+                    <div className="p-4 border-b border-slate-800/60 bg-slate-800/20">
                       <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 bg-gradient-to-br from-purple-600 to-blue-600 rounded-xl flex items-center justify-center shadow-lg">
-                          <User className="w-5 h-5 text-white" strokeWidth={2.5} />
+                        <div className="w-10 h-10 bg-indigo-500/10 border border-indigo-500/20 rounded-full flex items-center justify-center shrink-0">
+                          <Shield className="w-5 h-5 text-indigo-400" />
                         </div>
-                        <div>
-                          <p className="text-sm font-semibold text-white">{user?.name || 'Admin'}</p>
-                          <p className="text-xs text-slate-400">{user?.email || 'admin@agartex.com'}</p>
+                        <div className="overflow-hidden">
+                          <p className="text-sm font-bold text-white truncate">
+                            {user?.name || 'Super Admin'}
+                          </p>
+                          <p className="text-xs text-slate-400 truncate">
+                            {user?.email || 'admin@agartex.com'}
+                          </p>
                         </div>
                       </div>
                     </div>
 
-                    {/* Logout Button */}
+                    {/* Actions */}
                     <div className="p-2">
                       <button
-                          onClick={handleLogout}
-                          className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-red-400 hover:text-red-300 hover:bg-red-500/10 rounded-xl transition-all group font-medium"
+                          onClick={() => {
+                            setShowProfile(false);
+                            logout();
+                          }}
+                          className="w-full flex items-center gap-3 px-3 py-2.5 text-rose-400 hover:text-rose-300 hover:bg-rose-500/10 rounded-lg transition-colors text-sm font-medium"
                       >
-                        <LogOut className="w-4 h-4 group-hover:scale-110 transition-transform" />
-                        Logout
+                        <LogOut className="w-4 h-4" />
+                        Sign Out
                       </button>
                     </div>
                   </div>
-              )}
-            </div>
+                </>
+            )}
           </div>
         </div>
-
-        <style jsx>{`
-        @keyframes slideDown {
-          from {
-            opacity: 0;
-            transform: translateY(-10px);
-          }
-          to {
-            opacity: 1;
-            transform: translateY(0);
-          }
-        }
-
-        .animate-slideDown {
-          animation: slideDown 0.2s ease-out;
-        }
-      `}</style>
       </header>
   );
 };

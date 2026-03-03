@@ -2,365 +2,381 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from '../services/axios';
 import { API_ENDPOINTS } from '../config/api';
+import { useToast } from '../components/ui/Toast';
+import { useDebounce } from '../hooks/useDebounce';
 import {
-  Search,
-  Eye,
-  Ban,
-  CheckCircle,
-  XCircle,
-  Users as UsersIcon,
-  UserPlus,
-  UserCheck,
-  UserX,
-  Filter,
-  ChevronLeft,
-  ChevronRight,
-  Sparkles,
-  TrendingUp,
-  DollarSign,
-  Calendar,
-  Mail,
-  Shield
+  Users as UsersIcon, Eye, CheckCircle, Ban, Crown
 } from 'lucide-react';
+import {
+  LoadingSpinner, PageHeader, SearchInput, StatusBadge,
+  Pagination, EmptyState, FilterChip
+} from '../components/ui';
+import ConfirmDialog from '../components/ui/ConfirmDialog';
 
 const Users = () => {
+  const navigate = useNavigate();
+  const toast = useToast();
+
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
+  const [statusFilter, setStatusFilter] = useState('all');
   const [currentPage, setCurrentPage] = useState(1);
   const [pagination, setPagination] = useState(null);
-  const navigate = useNavigate();
+
+  const [confirmDialog, setConfirmDialog] = useState({ open: false, userId: null, action: '' });
+  const [actionLoading, setActionLoading] = useState(false);
+
+  const debouncedSearch = useDebounce(searchTerm, 500);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [debouncedSearch, statusFilter]);
 
   useEffect(() => {
     fetchUsers();
-  }, [currentPage]);
+  }, [currentPage, debouncedSearch, statusFilter]);
 
   const fetchUsers = async () => {
     try {
       setLoading(true);
-      const response = await axios.get(`${API_ENDPOINTS.USERS}?page=${currentPage}`);
+      const params = new URLSearchParams();
+      params.append('page', currentPage);
+      if (debouncedSearch) params.append('search', debouncedSearch);
+      if (statusFilter !== 'all') params.append('status', statusFilter);
+
+      const response = await axios.get(`${API_ENDPOINTS.USERS}?${params}`);
       if (response.data.success) {
-        setUsers(response.data.data.data);
-        setPagination({
-          current_page: response.data.data.current_page,
-          last_page: response.data.data.last_page,
-          total: response.data.data.total,
-        });
+        const d = response.data.data;
+        setUsers(d.data || d);
+        if (d.last_page) {
+          setPagination({ currentPage: d.current_page, lastPage: d.last_page, total: d.total, perPage: d.per_page });
+        }
       }
     } catch (error) {
-      console.error('Error fetching users:', error);
+      toast.error('Failed to load users');
     } finally {
       setLoading(false);
     }
   };
 
-  const updateUserStatus = async (userId, status) => {
-    if (!window.confirm(`Are you sure you want to ${status} this user?`)) {
-      return;
-    }
-
+  const handleStatusUpdate = async () => {
+    const { userId, action } = confirmDialog;
+    setActionLoading(true);
     try {
-      const response = await axios.get(API_ENDPOINTS.UPDATE_USER_STATUS(userId, status));
+      const response = await axios.get(API_ENDPOINTS.UPDATE_USER_STATUS(userId, action));
       if (response.data.success) {
-        alert(response.data.message);
+        toast.success(response.data.message || `User ${action}d successfully`);
         fetchUsers();
+      } else {
+        toast.error(response.data.message || 'Failed to update status');
       }
     } catch (error) {
-      alert('Failed to update user status');
-      console.error('Error updating user status:', error);
+      toast.error(error.response?.data?.message || 'Failed to update user status');
+    } finally {
+      setActionLoading(false);
+      setConfirmDialog({ open: false, userId: null, action: '' });
     }
   };
 
-  const filteredUsers = users.filter(
-      (user) =>
-          user.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          user.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          user.username?.toLowerCase().includes(searchTerm.toLowerCase())
-  );
-
-  const getStatusBadge = (status) => {
-    const badges = {
-      active: { bg: 'bg-green-500/10', text: 'text-green-400', border: 'border-green-500/30', icon: CheckCircle },
-      inactive: { bg: 'bg-yellow-500/10', text: 'text-yellow-400', border: 'border-yellow-500/30', icon: XCircle },
-      blocked: { bg: 'bg-red-500/10', text: 'text-red-400', border: 'border-red-500/30', icon: Ban },
-    };
-    return badges[status] || { bg: 'bg-slate-500/10', text: 'text-slate-400', border: 'border-slate-500/30', icon: XCircle };
+  const getStatusAction = (currentStatus) => {
+    if (currentStatus === 'active') return { action: 'blocked', label: 'Block', variant: 'danger', icon: Ban };
+    return { action: 'active', label: 'Activate', variant: 'success', icon: CheckCircle };
   };
 
-  // Calculate stats
-  const stats = {
-    total: pagination?.total || 0,
-    active: users.filter(u => u.status === 'active').length,
-    inactive: users.filter(u => u.status === 'inactive').length,
-    blocked: users.filter(u => u.status === 'blocked').length,
+  // Helper to generate consistent, subtle avatar colors
+  const getAvatarColor = (name) => {
+    const colors = ['bg-indigo-500/10 text-indigo-400', 'bg-emerald-500/10 text-emerald-400', 'bg-blue-500/10 text-blue-400', 'bg-amber-500/10 text-amber-400'];
+    return colors[(name ? name.length : 0) % colors.length];
   };
-
-  if (loading) {
-    return (
-        <div className="flex items-center justify-center h-64">
-          <div className="relative">
-            <div className="animate-spin rounded-full h-16 w-16 border-4 border-slate-700"></div>
-            <div className="animate-spin rounded-full h-16 w-16 border-4 border-t-purple-500 border-r-blue-500 absolute top-0 left-0"></div>
-            <div className="absolute inset-0 flex items-center justify-center">
-              <Sparkles className="w-6 h-6 text-purple-400 animate-pulse" />
-            </div>
-          </div>
-        </div>
-    );
-  }
 
   return (
-      <div className="space-y-6 p-6">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
         {/* Header */}
-        <div className="relative">
-          <div className="absolute inset-0 bg-gradient-to-r from-purple-500/10 to-blue-500/10 rounded-3xl blur-3xl"></div>
-          <div className="relative bg-gradient-to-r from-slate-800 to-slate-900 rounded-2xl p-8 border border-slate-700/50 overflow-hidden">
-            <div className="absolute top-0 right-0 w-64 h-64 bg-purple-500/10 rounded-full blur-3xl"></div>
-            <div className="absolute bottom-0 left-0 w-64 h-64 bg-blue-500/10 rounded-full blur-3xl"></div>
-            <div className="relative z-10">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 bg-gradient-to-br from-purple-600 to-blue-600 rounded-xl flex items-center justify-center shadow-lg shadow-purple-500/50">
-                    <UsersIcon className="w-6 h-6 text-white" strokeWidth={2.5} />
+        <div className="flex flex-col gap-4">
+          <PageHeader
+              icon={UsersIcon}
+              title="Users"
+              description="Manage members, balances, tiers, and account status."
+          />
+
+          {/* KPI + Controls */}
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
+            {/* KPI Cards */}
+            <div className="lg:col-span-8 grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div className="rounded-2xl border border-white/10 bg-slate-900/70 p-4 shadow-sm">
+                <div className="text-xs uppercase tracking-wider text-slate-500">Total users</div>
+                <div className="mt-2 flex items-baseline justify-between">
+                  <div className="text-2xl font-semibold text-slate-100">
+                    {pagination?.total || users.length}
                   </div>
-                  <div>
-                    <h1 className="text-3xl font-bold bg-gradient-to-r from-purple-400 via-blue-400 to-cyan-400 bg-clip-text text-transparent">
-                      Users Management
-                    </h1>
-                    <p className="text-slate-400 mt-1">Manage and monitor all platform users</p>
-                  </div>
+                  <div className="text-xs text-slate-500">Directory</div>
+                </div>
+              </div>
+
+              <div className="rounded-2xl border border-white/10 bg-slate-900/70 p-4 shadow-sm">
+                <div className="text-xs uppercase tracking-wider text-slate-500">Active</div>
+                <div className="mt-2 text-2xl font-semibold text-emerald-400">
+                  {users.filter(u => u.status === "active").length}
+                </div>
+              </div>
+
+              <div className="rounded-2xl border border-white/10 bg-slate-900/70 p-4 shadow-sm">
+                <div className="text-xs uppercase tracking-wider text-slate-500">Blocked</div>
+                <div className="mt-2 text-2xl font-semibold text-rose-400">
+                  {users.filter(u => u.status === "blocked").length}
+                </div>
+              </div>
+            </div>
+
+            {/* Search + Filters */}
+            <div className="lg:col-span-4 rounded-2xl border border-white/10 bg-slate-900/70 p-4 shadow-sm">
+              <div className="space-y-3">
+                <SearchInput
+                    value={searchTerm}
+                    onChange={setSearchTerm}
+                    placeholder="Search name, email, username…"
+                />
+
+                <div className="flex flex-wrap gap-2">
+                  {["all", "active", "inactive", "blocked"].map((status) => (
+                      <button
+                          key={status}
+                          onClick={() => setStatusFilter(status)}
+                          className={[
+                            "px-3 py-1.5 rounded-lg text-xs font-semibold border transition",
+                            statusFilter === status
+                                ? "bg-white/10 border-white/20 text-slate-100"
+                                : "bg-transparent border-white/10 text-slate-400 hover:text-slate-200 hover:bg-white/5"
+                          ].join(" ")}
+                      >
+                        {status === "all"
+                            ? "All"
+                            : status.charAt(0).toUpperCase() + status.slice(1)}
+                      </button>
+                  ))}
                 </div>
               </div>
             </div>
           </div>
         </div>
 
-        {/* Stats Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-          <div className="bg-gradient-to-br from-slate-800 to-slate-900 rounded-2xl p-6 border border-slate-700/50 hover:border-slate-600 transition-all">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-slate-400 mb-1">Total Users</p>
-                <p className="text-3xl font-bold text-white">{stats.total}</p>
+        {/* Table Card */}
+        <div className="rounded-2xl border border-white/10 bg-slate-900 shadow-xl overflow-hidden">
+          {/* Top bar */}
+          <div className="flex items-center justify-between gap-3 px-5 py-4 border-b border-white/10 bg-slate-900/60">
+            <div className="flex items-center gap-2">
+              <div className="h-2 w-2 rounded-full bg-emerald-500" />
+              <div className="text-sm font-medium text-slate-200">User Directory</div>
+              <div className="text-xs text-slate-500">
+                {pagination?.total ? `${pagination.total} records` : `${users.length} records`}
               </div>
-              <div className="w-12 h-12 bg-gradient-to-br from-purple-600 to-blue-600 rounded-xl flex items-center justify-center shadow-lg shadow-purple-500/30">
-                <UsersIcon className="w-6 h-6 text-white" strokeWidth={2.5} />
-              </div>
+            </div>
+
+            <div className="text-xs text-slate-500 hidden sm:block">
+              Tip: Click the eye icon to view full profile
             </div>
           </div>
 
-          <div className="bg-gradient-to-br from-slate-800 to-slate-900 rounded-2xl p-6 border border-green-500/20 hover:border-green-500/40 transition-all">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-slate-400 mb-1">Active</p>
-                <p className="text-3xl font-bold text-green-400">{stats.active}</p>
+          {loading ? (
+              <div className="py-20">
+                <LoadingSpinner text="Loading users…" />
               </div>
-              <div className="w-12 h-12 bg-green-500/10 rounded-xl flex items-center justify-center border border-green-500/30">
-                <UserCheck className="w-6 h-6 text-green-400" strokeWidth={2.5} />
+          ) : users.length === 0 ? (
+              <div className="py-20">
+                <EmptyState
+                    icon={UsersIcon}
+                    title="No users found"
+                    description="Try a different search term or change the status filter."
+                />
               </div>
-            </div>
-          </div>
+          ) : (
+              <div className="overflow-x-auto">
+                <table className="min-w-full text-sm">
+                  <thead className="sticky top-0 z-10 bg-slate-900/95 backdrop-blur border-b border-white/10">
+                  <tr className="text-xs uppercase tracking-wider text-slate-500">
+                    <th className="px-6 py-4 text-left font-semibold">User</th>
+                    <th className="px-6 py-4 text-left font-semibold hidden md:table-cell">Contact</th>
+                    <th className="px-6 py-4 text-left font-semibold">USDT</th>
+                    <th className="px-6 py-4 text-left font-semibold">AGR</th>
+                    <th className="px-6 py-4 text-left font-semibold hidden lg:table-cell">Tier</th>
+                    <th className="px-6 py-4 text-left font-semibold">Status</th>
+                    <th className="px-6 py-4 text-left font-semibold hidden xl:table-cell">Joined</th>
+                    <th className="px-6 py-4 text-right font-semibold">Actions</th>
+                  </tr>
+                  </thead>
 
-          <div className="bg-gradient-to-br from-slate-800 to-slate-900 rounded-2xl p-6 border border-yellow-500/20 hover:border-yellow-500/40 transition-all">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-slate-400 mb-1">Inactive</p>
-                <p className="text-3xl font-bold text-yellow-400">{stats.inactive}</p>
-              </div>
-              <div className="w-12 h-12 bg-yellow-500/10 rounded-xl flex items-center justify-center border border-yellow-500/30">
-                <XCircle className="w-6 h-6 text-yellow-400" strokeWidth={2.5} />
-              </div>
-            </div>
-          </div>
+                  <tbody className="divide-y divide-white/5">
+                  {users.map((user, idx) => {
+                    const statusAction = getStatusAction(user.status);
+                    const StatusActionIcon = statusAction.icon;
 
-          <div className="bg-gradient-to-br from-slate-800 to-slate-900 rounded-2xl p-6 border border-red-500/20 hover:border-red-500/40 transition-all">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-slate-400 mb-1">Blocked</p>
-                <p className="text-3xl font-bold text-red-400">{stats.blocked}</p>
-              </div>
-              <div className="w-12 h-12 bg-red-500/10 rounded-xl flex items-center justify-center border border-red-500/30">
-                <UserX className="w-6 h-6 text-red-400" strokeWidth={2.5} />
-              </div>
-            </div>
-          </div>
-        </div>
+                    return (
+                        <tr
+                            key={user.id}
+                            className={[
+                              "transition-colors",
+                              idx % 2 === 0 ? "bg-white/[0.01]" : "bg-transparent",
+                              "hover:bg-white/[0.04]"
+                            ].join(" ")}
+                        >
+                          {/* User */}
+                          <td className="px-6 py-4">
+                            <div className="flex items-center gap-3">
+                              <div
+                                  className={[
+                                    "w-10 h-10 rounded-xl flex items-center justify-center font-semibold",
+                                    "ring-1 ring-inset ring-white/10",
+                                    getAvatarColor(user.firstname)
+                                  ].join(" ")}
+                              >
+                                {(user.firstname || "U").charAt(0).toUpperCase()}
+                              </div>
 
-        {/* Search and Filter Bar */}
-        <div className="bg-gradient-to-br from-slate-800 to-slate-900 rounded-2xl p-4 border border-slate-700/50 shadow-xl">
-          <div className="flex items-center gap-4">
-            <div className="flex-1 relative">
-              <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-slate-400 w-5 h-5" strokeWidth={2.5} />
-              <input
-                  type="text"
-                  placeholder="Search by name, email, or username..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full pl-12 pr-4 py-3 bg-slate-900/50 border border-slate-600 rounded-xl text-white placeholder-slate-500 focus:ring-2 focus:ring-purple-500 focus:border-transparent transition"
-              />
-            </div>
-            <button className="px-4 py-3 bg-slate-900/50 border border-slate-600 rounded-xl text-slate-300 hover:text-white hover:border-slate-500 transition-all flex items-center gap-2">
-              <Filter className="w-5 h-5" strokeWidth={2.5} />
-              <span className="font-medium">Filter</span>
-            </button>
-          </div>
-        </div>
-
-        {/* Users Table */}
-        <div className="bg-gradient-to-br from-slate-800 to-slate-900 rounded-2xl border border-slate-700/50 overflow-hidden shadow-xl">
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead className="bg-slate-900/50 border-b border-slate-700/50">
-              <tr>
-                <th className="px-6 py-4 text-left text-xs font-semibold text-slate-400 uppercase tracking-wider">
-                  User
-                </th>
-                <th className="px-6 py-4 text-left text-xs font-semibold text-slate-400 uppercase tracking-wider">
-                  Username
-                </th>
-                <th className="px-6 py-4 text-left text-xs font-semibold text-slate-400 uppercase tracking-wider">
-                  Status
-                </th>
-                <th className="px-6 py-4 text-left text-xs font-semibold text-slate-400 uppercase tracking-wider">
-                  Balance
-                </th>
-                <th className="px-6 py-4 text-left text-xs font-semibold text-slate-400 uppercase tracking-wider">
-                  Joined
-                </th>
-                <th className="px-6 py-4 text-right text-xs font-semibold text-slate-400 uppercase tracking-wider">
-                  Actions
-                </th>
-              </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-700/30">
-              {filteredUsers.map((user) => {
-                const statusStyle = getStatusBadge(user.status);
-                const StatusIcon = statusStyle.icon;
-
-                return (
-                    <tr key={user.id} className="hover:bg-slate-700/20 transition-colors group">
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 bg-gradient-to-br from-purple-600 to-blue-600 rounded-xl flex items-center justify-center shadow-lg">
-                          <span className="text-white font-bold text-sm">
-                            {user.name?.charAt(0).toUpperCase()}
-                          </span>
-                          </div>
-                          <div>
-                            <div className="text-sm font-semibold text-white">{user.name}</div>
-                            <div className="flex items-center gap-1 text-xs text-slate-400">
-                              <Mail className="w-3 h-3" />
-                              {user.email}
+                              <div className="min-w-0">
+                                <div className="text-slate-100 font-semibold truncate">
+                                  {user.firstname || "Unknown User"}
+                                </div>
+                                <div className="text-xs text-slate-500 truncate">
+                                  @{user.username || "N/A"}
+                                </div>
+                              </div>
                             </div>
-                          </div>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm text-slate-300 font-medium">
-                          {user.username || <span className="text-slate-500">N/A</span>}
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                      <span className={`px-3 py-1.5 inline-flex items-center gap-1.5 text-xs leading-5 font-bold rounded-xl $${statusStyle.bg}$$ {statusStyle.text} border ${statusStyle.border} backdrop-blur-sm`}>
-                        <StatusIcon className="w-3.5 h-3.5" strokeWidth={2.5} />
-                        {user.status}
-                      </span>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="flex items-center gap-1.5">
-                          <DollarSign className="w-4 h-4 text-green-400" strokeWidth={2.5} />
-                          <span className="text-sm font-bold text-white">
-                          ${(user.balance || 0).toFixed(2)}
-                        </span>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="flex items-center gap-1.5 text-sm text-slate-400">
-                          <Calendar className="w-4 h-4" strokeWidth={2.5} />
-                          {new Date(user.created_at).toLocaleDateString()}
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                        <div className="flex items-center justify-end gap-2">
-                          <button
-                              onClick={() => navigate(`/users/${user.id}`)}
-                              className="p-2 bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 hover:text-blue-300 rounded-lg transition-all border border-blue-500/30 hover:border-blue-500/50 group/btn"
-                              title="View Details"
-                          >
-                            <Eye className="w-4 h-4 group-hover/btn:scale-110 transition-transform" strokeWidth={2.5} />
-                          </button>
-                          {user.status === 'active' && (
-                              <button
-                                  onClick={() => updateUserStatus(user.id, 'blocked')}
-                                  className="p-2 bg-red-500/10 hover:bg-red-500/20 text-red-400 hover:text-red-300 rounded-lg transition-all border border-red-500/30 hover:border-red-500/50 group/btn"
-                                  title="Block User"
-                              >
-                                <Ban className="w-4 h-4 group-hover/btn:scale-110 transition-transform" strokeWidth={2.5} />
-                              </button>
-                          )}
-                          {(user.status === 'blocked' || user.status === 'inactive') && (
-                              <button
-                                  onClick={() => updateUserStatus(user.id, 'active')}
-                                  className="p-2 bg-green-500/10 hover:bg-green-500/20 text-green-400 hover:text-green-300 rounded-lg transition-all border border-green-500/30 hover:border-green-500/50 group/btn"
-                                  title="Activate User"
-                              >
-                                <CheckCircle className="w-4 h-4 group-hover/btn:scale-110 transition-transform" strokeWidth={2.5} />
-                              </button>
-                          )}
-                        </div>
-                      </td>
-                    </tr>
-                );
-              })}
-              </tbody>
-            </table>
-          </div>
+                          </td>
+
+                          {/* Contact */}
+                          <td className="px-6 py-4 hidden md:table-cell">
+                            <div className="text-slate-200 truncate max-w-[260px]">{user.email}</div>
+                            {user.phone ? (
+                                <div className="text-xs text-slate-500 mt-1">{user.phone}</div>
+                            ) : (
+                                <div className="text-xs text-slate-600 mt-1">—</div>
+                            )}
+                          </td>
+
+                          {/* USDT */}
+                          <td className="px-6 py-4">
+                            <div className="font-mono font-semibold text-emerald-400">
+                              $
+                              {parseFloat(user.usdt_balance || 0).toLocaleString(undefined, {
+                                minimumFractionDigits: 2,
+                                maximumFractionDigits: 2
+                              })}
+                            </div>
+                            <div className="text-xs text-slate-600 mt-1">Vault</div>
+                          </td>
+
+                          {/* AGR */}
+                          <td className="px-6 py-4">
+                            <div className="font-mono font-semibold text-indigo-400">
+                              {parseFloat(user.agr_balance || 0).toLocaleString(undefined, {
+                                minimumFractionDigits: 2,
+                                maximumFractionDigits: 2
+                              })}
+                            </div>
+                            <div className="text-xs text-slate-600 mt-1">Staked</div>
+                          </td>
+
+                          {/* Tier */}
+                          <td className="px-6 py-4 hidden lg:table-cell">
+                            {user.rank ? (
+                                <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-amber-500/10 text-amber-300 ring-1 ring-inset ring-amber-500/20 text-xs font-semibold">
+                                  <Crown className="w-3.5 h-3.5" />
+                                  {user.rank}
+                                </div>
+                            ) : (
+                                <span className="text-slate-600">—</span>
+                            )}
+                          </td>
+
+                          {/* Status */}
+                          <td className="px-6 py-4">
+                            <StatusBadge status={user.status} />
+                          </td>
+
+                          {/* Joined */}
+                          <td className="px-6 py-4 hidden xl:table-cell text-slate-400">
+                            {new Date(user.created_at).toLocaleDateString(undefined, {
+                              year: "numeric",
+                              month: "short",
+                              day: "numeric"
+                            })}
+                          </td>
+
+                          {/* Actions */}
+                          <td className="px-6 py-4">
+                            <div className="flex items-center justify-end">
+                              <div className="inline-flex rounded-xl border border-white/10 bg-slate-950/40 overflow-hidden">
+                                <button
+                                    onClick={() => navigate(`/users/${user.id}`)}
+                                    className="px-3 py-2 text-slate-300 hover:text-white hover:bg-white/5 transition"
+                                    title="View Details"
+                                >
+                                  <Eye className="w-4 h-4" />
+                                </button>
+
+                                <div className="w-px bg-white/10" />
+
+                                <button
+                                    onClick={() =>
+                                        setConfirmDialog({
+                                          open: true,
+                                          userId: user.id,
+                                          action: statusAction.action,
+                                          variant: statusAction.variant,
+                                          title: `${statusAction.label} User`,
+                                          message: `Are you sure you want to ${statusAction.label.toLowerCase()} "${user.name || user.email}"?`
+                                        })
+                                    }
+                                    className={[
+                                      "px-3 py-2 transition",
+                                      statusAction.action === "blocked"
+                                          ? "text-rose-300 hover:text-rose-200 hover:bg-rose-500/10"
+                                          : "text-emerald-300 hover:text-emerald-200 hover:bg-emerald-500/10"
+                                    ].join(" ")}
+                                    title={statusAction.label}
+                                >
+                                  <StatusActionIcon className="w-4 h-4" />
+                                </button>
+                              </div>
+                            </div>
+                          </td>
+                        </tr>
+                    );
+                  })}
+                  </tbody>
+                </table>
+              </div>
+          )}
 
           {/* Pagination */}
-          {pagination && (
-              <div className="bg-slate-900/50 px-6 py-4 flex items-center justify-between border-t border-slate-700/50">
-                <div className="text-sm text-slate-400">
-                  Showing page <span className="font-semibold text-white">{pagination.current_page}</span> of{' '}
-                  <span className="font-semibold text-white">{pagination.last_page}</span>
-                  {' '}(<span className="font-semibold text-purple-400">{pagination.total}</span> total users)
-                </div>
-                <div className="flex items-center gap-2">
-                  <button
-                      onClick={() => setCurrentPage(currentPage - 1)}
-                      disabled={currentPage === 1}
-                      className="px-4 py-2 bg-slate-900/50 border border-slate-600 rounded-xl text-slate-300 hover:text-white hover:border-slate-500 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 group"
-                  >
-                    <ChevronLeft className="w-4 h-4 group-hover:-translate-x-0.5 transition-transform" strokeWidth={2.5} />
-                    Previous
-                  </button>
-                  <div className="px-4 py-2 bg-gradient-to-r from-purple-600 to-blue-600 rounded-xl text-white font-semibold shadow-lg shadow-purple-500/30">
-                    {currentPage}
-                  </div>
-                  <button
-                      onClick={() => setCurrentPage(currentPage + 1)}
-                      disabled={currentPage === pagination.last_page}
-                      className="px-4 py-2 bg-slate-900/50 border border-slate-600 rounded-xl text-slate-300 hover:text-white hover:border-slate-500 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 group"
-                  >
-                    Next
-                    <ChevronRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" strokeWidth={2.5} />
-                  </button>
-                </div>
+          {!loading && pagination && users.length > 0 && (
+              <div className="border-t border-white/10 bg-slate-900/60 px-4 py-4">
+                <Pagination
+                    currentPage={pagination.currentPage}
+                    lastPage={pagination.lastPage}
+                    total={pagination.total}
+                    perPage={pagination.perPage}
+                    onPageChange={setCurrentPage}
+                />
               </div>
           )}
         </div>
 
-        {/* Empty State */}
-        {filteredUsers.length === 0 && (
-            <div className="text-center py-16 bg-gradient-to-br from-slate-800 to-slate-900 rounded-2xl border-2 border-dashed border-slate-700 shadow-xl">
-              <div className="w-20 h-20 bg-slate-800 rounded-full flex items-center justify-center mx-auto mb-4">
-                <UsersIcon className="w-10 h-10 text-slate-600" strokeWidth={2} />
-              </div>
-              <p className="text-slate-300 font-semibold text-lg mb-2">No Users Found</p>
-              <p className="text-slate-500 text-sm">Try adjusting your search criteria</p>
-            </div>
-        )}
+        {/* Confirm Dialog */}
+        <ConfirmDialog
+            isOpen={confirmDialog.open}
+            onClose={() => setConfirmDialog({ open: false, userId: null, action: "" })}
+            onConfirm={handleStatusUpdate}
+            title={confirmDialog.title}
+            message={confirmDialog.message}
+            confirmText={confirmDialog.action === "blocked" ? "Block User" : "Activate User"}
+            variant={confirmDialog.variant || "danger"}
+            loading={actionLoading}
+        />
       </div>
   );
+
 };
 
 export default Users;
