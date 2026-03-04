@@ -108,9 +108,9 @@ const Dashboard = () => {
             <button onClick={() => navigate('/deposits')} className="px-5 py-2.5 bg-slate-900 border border-slate-800 hover:border-slate-700 hover:bg-slate-800 rounded-xl text-sm font-medium text-white transition-all">
               Review Deposits
             </button>
-            <button className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-500 shadow-[0_0_20px_rgba(79,70,229,0.3)] border border-indigo-500/50 rounded-xl text-sm font-medium text-white transition-all flex items-center gap-2">
-              <Download className="w-4 h-4" /> Export Ledger
-            </button>
+            {/*<button className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-500 shadow-[0_0_20px_rgba(79,70,229,0.3)] border border-indigo-500/50 rounded-xl text-sm font-medium text-white transition-all flex items-center gap-2">*/}
+            {/*  <Download className="w-4 h-4" /> Export Ledger*/}
+            {/*</button>*/}
           </div>
         </div>
 
